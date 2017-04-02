@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+    </head>
+
+    <%
+        def id():
+            id._last_id += 1
+            return id._last_id
+
+        id._last_id = 0
+
+        def extract_attrs(object):
+            r = {}
+            for k in dir(object):
+                if not k.startswith('__') and hasattr(object, k):
+                    v = getattr(object, k)
+                    if not type(v).__name__.endswith('method'):
+                        r[k] = v
+            return r
+
+        def try_repr(obj):
+            try:
+                return repr(obj)
+            except Exception:
+                return 'instance of %s' % type(obj)
+
+    %>
+
+<%def name="object(x, depth=0)" buffered="True">
+% if depth > maxdepth:
+<% return "[too deep]" %>
+% endif
+% if x is __builtins__:
+<% return "__builtins__"%>
+% endif
+<% objid = id() %>
+% if type(x) in [str, int, long, float, set] or x is None:
+${try_repr(x) | h}
+% elif type(x) == dict:
+<table>
+% for key, value in x.items():
+% if key == '__builtins__':
+<% continue %>
+% endif
+<tr>
+<td>${key | h}</td>
+<td>${type(value).__name__ | h}</td>
+<td>${object(value, depth + 1)}</td>
+</tr>
+% endfor
+</table>
+% elif type(x) == list:
+${len(x)} items
+<table>
+% for value in x:
+<tr>
+<td>${type(value).__name__ | h}</td>
+<td>${object(value, depth + 1)}</td>
+</tr>
+% endfor
+</table>
+% else:
+% if hasattr(x, '__dict__'):
+${try_repr(x) | h}
+${object(extract_attrs(x), depth + 1)}
+% else:
+${try_repr(x) | h}
+% endif
+% endif
+</%def>
+
+<body>
+<h3>Error report</h3>
+<dl>
+<dt>Timestamp</dt>
+<dd>${ datetime.fromtimestamp(report.timestamp) }</dd>
+</dl>
+<h3>Exception</h3>
+${object(report.exception)}
+<h3>Traceback</h3>
+
+% for frame in report.traceback:
+<% frameid = id() %>
+${ frame.file } : ${frame.line }
+<div class="row">
+<h4>Locals</h4>
+${object(frame.locals)}
+</div>
+% endfor
+</body>
+</html>

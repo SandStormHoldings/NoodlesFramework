@@ -1,0 +1,14 @@
+* This is our small web-framework, based on gevent (gevent.org).
+
+** Quickstart
+#+BEGIN_SRC shell
+
+mkdir helloworld                                                               #create a directory structure for your project
+git clone host:../NoodlesFramework.git helloworld/noodles                      # clone it to noodles directory
+cd helloworld && noodles/manage.py init                                        # copy the project template to your project dir
+virtualenv venv && source venv/bin/activate && pip install -r requirements.txt # create a virtual environment, install dependencies
+./runserver.py                                                                 # we are good to go. point your browser to the address
+
+#+END_SRC
+
+
