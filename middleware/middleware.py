@@ -5,7 +5,6 @@ filedesc: framework middleware base class
 """
 import sys
 from importlib import import_module as im
-from functools import reduce
 
 
 class MiddlewareLoadError(Exception):

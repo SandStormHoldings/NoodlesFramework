@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
 """
 filedesc: mako templating for our server
 """
-import datetime
 import config
 import json
 import time
 from config import TEMPLATE_DIRS, MAKO_TMP_DIR
+from operator import isCallable
 
 from mako.lookup import TemplateLookup
-from noodles.http import Response, XMLResponse
+from noodles.http import Response
 
 
 # Specify application lookup
@@ -67,12 +66,9 @@ def render_to_response(templatename, context, request=None):
     return Response(rendered_page)
 
 
-def render_to_string(templatename, context=None, request=None):
+def render_to_string(templatename, context, request=None):
     " Just renders template to string "
-    if context is None:
-        context = {}
     context['time'] = time
-    context['datetime'] = datetime.datetime
     contextManager.update_context(context, request)
     template = appLookup.get_template(templatename)
     rendered_page = template.render(**context)
@@ -102,39 +98,18 @@ def render_to(templatename):
     def renderer(func):
         def wrapper(**kwargs):
             # Get context from the handler function
+            from config import URL_PREFIX
             context = func(**kwargs)
-            if hasattr(context,'__call__'):
+            try:
+                context['upr']=URL_PREFIX
+            except:
+                pass
+            if isCallable(context):
                 return context
             # Add some extra values to context
             request = kwargs['request']  # while it's enough :)
             rendered_page = render_to_string(templatename, context, request)
             return Response(rendered_page)
-        return wrapper
-    return renderer
-
-
-def render_to_xml(templatename):
-    """
-    Specify the render_to decorator
-    :param templatename:
-    Usage is some thing like:
-
-    @render_to_xml
-    def index(request):
-      # some code
-      return some_dict # Dictionary with context variables
-    """
-    def renderer(func):
-        def wrapper(**kwargs):
-            # Get context from the handler function
-            context = func(**kwargs)
-            if hasattr(context,'__call__'):
-                return context
-            # Add some extra values to context
-            request = kwargs['request']  # while it's enough :)
-            rendered_page = render_to_string(templatename, context, request)
-            result = XMLResponse(rendered_page)
-            return result
         return wrapper
     return renderer
 
@@ -153,7 +128,7 @@ def render_or_json(templatename):
         def wrapper(**kwargs):
             # Get context from the handler function
             context = func(**kwargs)
-            if hasattr(context,'__call__'):
+            if isCallable(context):
                 return context
             # Add some extra values to context
             request = kwargs['request']  # while it's enough :)

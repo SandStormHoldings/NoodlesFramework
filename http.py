@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 filedesc: Module for extending webob Request and Response classes
-"""
+'''
 # to use in our server application
 import json
 
@@ -9,7 +9,7 @@ import webob
 from mako.template import Template
 from noodles.utils.datahandler import datahandler
 from noodles.utils.logger import log
-from config import EXCEPTION_FLAVOR
+
 
 SET_COOKIES = '__set_cookies'
 UNSET_COOKIES = '__unset_cookies'
@@ -34,15 +34,10 @@ class Response(BaseResponse):
         self.status = 200  # 200 OK, it's default, but anyway...
         self.headerlist = [('Content-type', 'text/html')]
         self.charset = 'utf-8'
-        self.text = unicode(body)
-
-
-class XMLResponse(Response):
-    """Simple response class with 200 http header status
-    """
-    def __init__(self, body=''):
-        super(XMLResponse, self).__init__(body)
-        self.headerlist = [('Content-type', 'text/xml')]
+        if isinstance(body, str):
+            self.body = body
+        else:
+            self.text = body
 
 
 class Redirect(BaseResponse):
@@ -88,32 +83,22 @@ class Error500(BaseResponse):
         self.status = 500
         self.headerlist = [('Content-type', 'text/html')]
         self.charset = 'utf-8'
-        if tb:
-            if EXCEPTION_FLAVOR=='html':
-                tb = '<br />'.join(tb.split('\n'))
-        else:
+        if not tb:
             tb = "Please, load this page later"
         if ex:
             ex = ex.__repr__()
         else:
             ex = "Sorry, an error occured"
-        if EXCEPTION_FLAVOR=='html':
-            error_500_template = """
-                                <h1>500 error</h1>
-                                <div style="font-size:125%">
-                                    ${ex}
-                                </div>
+        error_500_template = """
+                            <h1>500 error</h1>
+                            <div style="font-size:125%">
+                                ${ex|h}
+                            </div>
 
-                                <div style="margin-top: 20px">
-                                    ${tb}
-                                </div>
-                                """
-        elif EXCEPTION_FLAVOR=='text':
-            error_500_template='\n\n\n'.join(["500 error",
-                                          "${ex}",
-                                          "${tb}"])
-        if EXCEPTION_FLAVOR=='text':
-            self.headerlist.append(('Content-type','text/plain'))
+                            <div style="margin-top: 20px"><pre>
+                                ${tb|h}
+                            </pre></div>
+                            """
         self.body = Template(error_500_template).render(ex=ex.__repr__(),
                                                         tb=tb).encode('utf-8')
 
@@ -129,12 +114,10 @@ class XResponse(BaseResponse):
 
         # Set and unset cookies
         # Set cookies
-
         try:
             set_cookies_dict = response_dict.get(SET_COOKIES)
         except:
-            raise
-
+            return None
         log.debug('response_dict2 is %s. Set-cookies dict is %s'
                   % (response_dict, set_cookies_dict))
         if set_cookies_dict:
@@ -150,7 +133,7 @@ class XResponse(BaseResponse):
             for cookie in unset_cookies_dict:
                 self.delete_cookie(cookie)
             response_dict.pop(UNSET_COOKIES)
-        self.text = unicode(json.dumps(response_dict, default=datahandler,indent=True))
+        self.body = json.dumps(response_dict, default=datahandler,indent=True)
 
 
 # Specify decorator for ajax response controller functions

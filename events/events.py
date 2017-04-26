@@ -22,7 +22,7 @@ class NoodlesEventError(Exception):
 
 
 class Event(object):
-    """I'm event object"""
+    "I'm event object"
 
     _events_id_key = ['__noodles_events_index']
 
@@ -36,14 +36,12 @@ class Event(object):
         self.callback = None
 
     def register(self, callback):
-        """Register event in system """
+        "Register event in system "
         log.debug('registering event %s in system' % self.id)
         NOODLES_EVENTS_LIST[self.id] = self
         self.callback = callback
 
-    def firing(self, event_data=None):
-        if event_data is None:
-            event_data = {}
+    def firing(self, event_data={}):
         event_msg = json.dumps({'event_id': self.id, 'event_data': event_data})
         RedisConn.publish(NOODLES_EVENTS_CHANNEL, event_msg)
         log.debug('Event %s is firing', self.id)
@@ -54,12 +52,12 @@ class Event(object):
 
 
 def event_listener():
-    print("event_listener:: i'm event listener")
+    print "event_listener:: i'm event listener"
     rc = redis.Redis()
     sub = rc.pubsub()
     sub.subscribe(NOODLES_EVENTS_CHANNEL)
     for msg in sub.listen():
-        print("Some message: %s" % msg.__repr__())
+        print "Some message: %s" % msg.__repr__()
         if msg['type'] == 'message':
             data = json.loads(msg['data'])
             event_id = data['event_id']

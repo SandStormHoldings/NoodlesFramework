@@ -9,6 +9,7 @@ if not get_config('DONT_USE_GEVENT'):
 
 
 from logging import Formatter
+from noodles.utils.logger import log
 import os
 import re
 import sys
@@ -17,15 +18,14 @@ import time
 import json
 from mako.filters import xml_escape
 from config import (URL_RESOLVER, CONTROLLERS, MIDDLEWARES, DEBUG, AUTO_RELOAD,
-                    HOST, PORT, SERVER_LOGTYPE, EXCEPTION_FLAVOR)
+                    HOST, PORT, SERVER_LOGTYPE)
 
 from noodles.dispatcher import Dispatcher
 from noodles.http import Request, Error500
-from noodles.middleware.middleware import AppMiddlewares
+from noodles.middleware import AppMiddlewares
+from noodles.utils.mailer import MailMan
 from noodles.websockserver import server
 from noodles.utils.datahandler import datahandler
-from noodles.utils.logger import log
-from noodles.utils.mailer import report_exception, format_exception
 
 
 resolver = __import__(URL_RESOLVER, globals(), locals())
@@ -47,15 +47,11 @@ def noodlesapp(env, start_response):
     :return: :rtype: :raise:
     """
     # Get request object
-    if get_config('ENCODE_SEMICOLON_IN_REQUEST') is True:
-        env['QUERY_STRING'] = re.sub('[;]', '%3b', env['QUERY_STRING'])
     request = Request(env)
 
-    if "HTTP_X_FORWARDED_FOR" in env:
-        x_forwarded_for = env["HTTP_X_FORWARDED_FOR"].split(',')[:1]
-        if x_forwarded_for:
-            request.remote_addr = x_forwarded_for[0]
-    #print("Try to handle url_path '%s'" % request.path)
+    if env.get("HTTP_X_FORWARDED_FOR"):
+        request.remote_addr = env.get("HTTP_X_FORWARDED_FOR")
+    #print "Try to handle url_path '%s'" % request.path
     # Get callable object with routine method to handle request
     producer = dispatcher.get_callable(request)
     if not producer:
@@ -67,45 +63,66 @@ def noodlesapp(env, start_response):
         response = middlewares.run_chain(producer, request)
         if not hasattr(response, 'is_noodles_response'):
             response = producer()
+        return response(env, start_response)
     # Capture traceback here and send it if debug mode
     except Exception as e:
         f = Formatter()
-        if EXCEPTION_FLAVOR=='html':
-            traceback = '<pre>%s\n\n%s</pre>' \
-                        % (json.dumps(env, indent=2, default=datahandler),
-                           xml_escape(f.formatException(sys.exc_info())))
-        else:
-            traceback = '%s\n%s' \
-                        % (json.dumps(env, indent=2, default=datahandler),
-                           f.formatException(sys.exc_info()))
-        extra = {'request': request}
-        log.error(format_exception(e, None), extra=extra)
-        report_exception(e, extra=extra)
-
+        traceback = '<pre>%s\n\n%s</pre>' % (
+                json.dumps(env, indent=2, default=datahandler),
+                f.formatException(sys.exc_info()))
+        log.exception(traceback)
         if DEBUG:
             response = Error500(e, traceback)
         else:
             response = Error500()
+            MailMan.mail_send(
+                MailMan(), e.__repr__(), traceback, with_hostname=True)
+        return response(env, start_response)
     finally:
         middlewares.end_chain(lambda x: x, request)
 
-    return response(env, start_response)
 
+def restart_program(mp, lck):
+    print 'acquiring lock'
+    from config import NO_GEVENT_MONKEYPATCH
+    if NO_GEVENT_MONKEYPATCH:
+            acquired = lck.acquire()
+    else:
+        acquired = lck.acquire(blocking=False)
+    if not acquired:
+        print 'failed to acquire'
+        return None
+    """Restarts the current program.
+    Note: this function does not return. Any cleanup action (like
+    saving data) must be done before calling this function."""
+    import commands
+    print 'deleting pyc'
+    rmcmd = 'find %s -iname "*.pyc" -exec rm -rf {} \;' % mp
+    st, op = commands.getstatusoutput(rmcmd)
+    assert st == 0, "%s -> %s (%s)" % (rmcmd, op, st)
+    python = sys.executable
+    print 'executing %s %s' % (python, sys.argv)
+    #os.execl(python, python, * sys.argv)
+    os.spawnl(os.P_WAIT, python, python, *sys.argv)
+    #os.execvp(python,**sys.argv)
+    #os.kill(os.getpid(),signal.SIGINT)
+    print 'executed'
 
-def exit_program():
-    sys.exit(0)
+    lck.release()
+    print 'released lock'
 
 
 class Observer(threading.Thread):
     def handler(self, arg1=None, arg2=None):
         print('event handled')  # %s ; %s'%(arg1,arg2))
         if hasattr(self, 'server_instance') and self.server_instance:
-            print('stopping server')
+            print 'stopping server'
             self.server_instance.stop()
             del self.server_instance
-            print('done stopping')
-        print('exiting program')
-        exit_program()
+            print 'done stopping'
+        print 'restarting program'
+        restart_program(self.mp, self.lck)
+        print 'done restarting'
 
     def scanfiles(self, dr, files, checkchange=False, initial=False):
         goodfiles = ['.py']
@@ -120,16 +137,17 @@ class Observer(threading.Thread):
                 if not gfmatch.search(fn):
                     continue
                 ffn = os.path.join(w[0], fn)
+                #print fn
                 if ffn in files and initial:
                     raise Exception('wtf %s' % ffn)
                 if not os.path.exists(ffn):
                     if not fn.startswith('.#'):
-                        print('%s does not exist' % ffn)
+                        print ('%s does not exist' % ffn)
                     continue
                 nmtime = os.stat(ffn).st_mtime
                 if checkchange:
                     if (ffn not in files) or (nmtime > files[ffn]):
-                        print('change detected in %s' % ffn)
+                        print 'change detected in %s' % ffn
                         return True
                 files[ffn] = nmtime
         return False
@@ -137,7 +155,7 @@ class Observer(threading.Thread):
     def run(self):
         files = {}
         self.scanfiles(self.mp, files, initial=True)
-        print('watching %s files' % len(files))
+        print 'watching %s files' % len(files)
         while True:
             rt = self.scanfiles(self.mp, files, checkchange=True)
             if rt:
@@ -148,7 +166,7 @@ class Observer(threading.Thread):
         import fcntl
         import signal
         import time
-        print('starting to watch events on %s' % self.mp)
+        print 'starting to watch events on %s' % self.mp
         signal.signal(signal.SIGIO, self.handler)
         fd = os.open(self.mp,  os.O_RDONLY)
         fcntl.fcntl(fd, fcntl.F_SETSIG, 0)
@@ -156,10 +174,11 @@ class Observer(threading.Thread):
                     fcntl.DN_MODIFY | fcntl.DN_CREATE | fcntl.DN_MULTISHOT)
         while True:
             time.sleep(0.1)
-        print('done watching events')
+        print 'done watching events'
 
 
 def fs_monitor(server_instance):
+    raise NotImplementedError('autoreload broken at the moment.')
     o = Observer()
     o.lck = threading.Lock()
     o.mp = os.getcwd()
@@ -170,44 +189,42 @@ def fs_monitor(server_instance):
 SERVER_INSTANCE = None
 
 
-def startapp(port=PORT, host=None, start_time=None):
-    global SERVER_INSTANCE
+def startapp(port=PORT, host=None):
     if get_config('DONT_USE_GEVENT'):
         from paste import httpserver
-        SERVER_INSTANCE = httpserver.serve(noodlesapp, host=host, port=port)
+        if AUTO_RELOAD:
+            from paste import httpserver,reloader
+            reloader.install()
+        SERVER_INSTANCE = httpserver.serve(noodlesapp,host=host,port=int(port))
+
     else:
-        startgeventapp(port, host, start_time)
+        startgeventapp(port, host)
 
-
-def startgeventapp(port=PORT, host=None, start_time=None):
+def startgeventapp(port=PORT, host=None):
     global SERVER_INSTANCE
     if port is None:
         port = PORT
     if host is None:
-        host = HOST
-    if start_time is None:
-        time_passed = ''
-    else:
-        time_passed = format(time.time() - start_time, '.3')
-    print('Binding on %s:%s %s' % (host, port, time_passed))
-    log_stream = None
+        host=HOST
+    print 'Binding on %s:%s' % (host, port)
     if SERVER_LOGTYPE == 'supress':
-        log_stream = open(os.devnull, "w")
+        import StringIO
+        s = StringIO.StringIO()
     else:
-        log_stream = SERVER_LOGTYPE
-    SERVER_INSTANCE = server.ApiSocketServer(
-        (host, int(port)),
-        noodlesapp,
-        log=log_stream)
-    if AUTO_RELOAD:
-        fs_monitor(SERVER_INSTANCE)
-    try:
-        SERVER_INSTANCE.serve_forever()
-    except KeyboardInterrupt:
-        print('interrupting...')
-    finally:
-        if hasattr(log_stream,'close'):
-            log_stream.close()
+        s = SERVER_LOGTYPE
+    if get_config('NO_GEVENT_MONKEYPATCH'):
+        if AUTO_RELOAD:
+            from paste import httpserver,reloader
+            reloader.install()
+        SERVER_INSTANCE = httpserver.serve(noodlesapp,host=host,port=int(port))
+    else:
+        SERVER_INSTANCE = server.ApiSocketServer((host, int(port)),
+                                                 noodlesapp, log=s)
+        if AUTO_RELOAD:
+            raise Exception('why am i here')
+            fs_monitor(SERVER_INSTANCE)
+
+    SERVER_INSTANCE.serve_forever()
 
 
 def startbackdoor(host=None, port=8998):
@@ -216,6 +233,6 @@ def startbackdoor(host=None, port=8998):
     if host is None:
         host=HOST
     from gevent.backdoor import BackdoorServer
-    print('Backdoor is on %s:%s' % (host, port))
+    print 'Backdoor is on %s:%s' % (host, port)
     bs = BackdoorServer((host, port), locals())
     bs.start()

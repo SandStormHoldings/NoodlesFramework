@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-
 import struct
 from socket import error as socket_error
 
-from gevent.coros import Semaphore
-from geventwebsocket import WebSocketError
+from gevent.lock import Semaphore
 
 
 class Closed(object):
@@ -19,6 +16,10 @@ class Closed(object):
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__,
                                self.reason, self.message)
+
+
+class WebSocketError(socket_error):
+    pass
 
 
 class FrameTooLargeException(WebSocketError):
@@ -36,10 +37,10 @@ class WebSocketHixie(object):
         self._write = _get_write(fobj)
 
     def _encode_text(self, s):
-        if isinstance(s, str):
+        if isinstance(s, unicode):
             return s.encode('utf-8')
         elif isinstance(s, str):
-            return str(s).encode('utf-8')
+            return unicode(s).encode('utf-8')
         else:
             raise Exception('Invalid encoding')
 
@@ -221,14 +222,9 @@ class WebSocketHybi(object):
 
         while True:
             data0 = self._read(2)
-
-            if data0 is None:
-                self._close()
-                raise WebSocketError('_read nothing')
-
             if not data0:
-                # штатное закрытие по инициативе другой стороны
-                break
+                self._close()
+                raise WebSocketError('_read 0')
 
             fin, opcode, mask, length = self._parse_header(data0)
 
@@ -324,10 +320,10 @@ class WebSocketHybi(object):
                 return msg
 
     def _encode_text(self, s):
-        if isinstance(s, str):
+        if isinstance(s, unicode):
             return s.encode('utf-8')
         elif isinstance(s, str):
-            return str(s).encode('utf-8')
+            return unicode(s).encode('utf-8')
         else:
             raise TypeError('Invalid encoding')
 

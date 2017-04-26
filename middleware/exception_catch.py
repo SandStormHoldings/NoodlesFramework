@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
+from logging import Formatter
+import sys
+from mako.filters import xml_escape
+from config import DEBUG
 
 from noodles.http import XResponse
 from noodles.middleware import BaseMiddleware
+from noodles.utils.mailer import MailMan
 from noodles.utils.logger import log
-from noodles.utils.mailer import report_exception, format_exception
 
 
 class ExceptionCatchMiddleware(BaseMiddleware):
@@ -11,7 +15,12 @@ class ExceptionCatchMiddleware(BaseMiddleware):
         try:
             return self.callable()
         except Exception as e:
-            log.error(format_exception(e, None))
-            report_exception(e)
+            formatter = Formatter()
+            traceback = '<pre>' + xml_escape(formatter.formatException(sys.exc_info())) + '</pre>'
+            log.error(traceback)
+
+            if not DEBUG:
+                MailMan.mail_send(MailMan(), e.__repr__(), traceback, with_hostname=True)
+
             data = {'error': 0, 'message': e.message}
             return XResponse(data)

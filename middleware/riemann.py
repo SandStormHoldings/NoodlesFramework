@@ -11,7 +11,6 @@ import copy
 
 from noodles.middleware import BaseMiddleware
 from noodles.utils.riemann_client import RIEMANN_QUEUE
-from noodles.utils.helpers import get_config
 
 
 class RiemannMiddleware(BaseMiddleware):
@@ -68,5 +67,4 @@ def infinite_control():
             status.close()
 
 
-if get_config('RIEMANN_USE'):
-    gevent.spawn(infinite_control)
+gevent.spawn(infinite_control)

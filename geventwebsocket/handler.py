@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import base64
 import re
 import struct
@@ -17,13 +16,20 @@ class WebSocketHandler(WSGIHandler):
     SUPPORTED_VERSIONS = ('13', '8', '7')
 
     def read_requestline(self):
-        try:
-            return self.rfile.readline()
-        except Exception as e:
-            self.socket.shutdown(SHUT_WR)
-            self.socket.close()
-            self.socket = None
-            self.log_error(e)
+        data = self.rfile.read(7)
+        if data[:1] == '<':
+            try:
+                data += self.rfile.read(15)
+                if data.lower().startswith('<policy-file-request/>'):
+                    self.socket.sendall(self.server.flash_policy)
+                else:
+                    self.log_error('Invalid request: %r', data)
+            finally:
+                self.socket.shutdown(SHUT_WR)
+                self.socket.close()
+                self.socket = None
+        else:
+            return data + self.rfile.readline()
 
     def handle_one_response(self):
         self.pre_start()
@@ -52,7 +58,7 @@ class WebSocketHandler(WSGIHandler):
             self.result = []
             if not result:
                 return
-            self.application(environ, lambda s, h: [])
+            self.application(environ, None)
             return []
         finally:
             self.log_request()

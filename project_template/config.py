@@ -54,7 +54,3 @@ MAIL_SERVER = 'smtp.example.com'
 MAIL_PORT = 587
 MAIL_LOGIN = 'your smtp mail login'
 MAIL_PASSWORD = 'your smtp mail password'
-
-EXCEPTION_FLAVOR = 'html'
-
-TIME_TO_OVERWRITE_CLIENT_COOKIE=60

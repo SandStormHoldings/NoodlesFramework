@@ -1,40 +1,19 @@
-# -*- coding: utf-8 -*-
 """
 Base Selenium test methods
 """
-import sys
-import uuid
 import json
 import time
 import unittest
 import urllib2
-import warnings
 
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
-
-from noodles.utils.logger import log
-from noodles.utils.helpers import get_config
-
-from unittest.case import (
-    _UnexpectedSuccess,
-    _ExpectedFailure,
-    SkipTest,
-)
-
-
-def get_browser_errors(driver):
-    return [m.get('message') for m in driver.get_log('browser')
-            if m.get('level') == 'SEVERE'
-            ]
 
 
 class BaseTest(unittest.TestCase):
     def __init__(self, testname, kwargs=None):
         self.e = None
         self.driver = None
-        self.suite_id = None
-        self.test_id = uuid.uuid4().hex
         self.method = None
         self.locator = None
         self.url_response = None
@@ -147,131 +126,3 @@ class BaseTest(unittest.TestCase):
             self.failUnless(self.selenium.is_text_present(self.locator))
         except AssertionError, self.e:
             self.verificationErrors.append(str(self.e))
-
-    def is_tracked(self):
-        result = get_config('TRACK_TESTS_EXECUTION', False)
-        return result
-
-    def pre_set_up(self):
-        if not self.is_tracked():
-            return
-
-        data = {
-            'job': get_config('JOB', ''),
-            'suite_id': self.suite_id,
-            'test_id': self.test_id,
-            'testname': self.testname,
-            'method': self._testMethodName,
-            'class': str(self.__class__),
-            'timestamp': time.ctime(),
-        }
-        track_file_name = get_config('TRACK_FILE_NAME', 'api_debug.json')
-        with open(track_file_name, 'w') as f:
-            f.write(json.dumps(data))
-
-    def post_tear_down(self):
-        pass
-
-    def safe_exec(self, fn):
-        """
-        Must never fall
-        """
-        try:
-            fn()
-        except Exception as e:
-            log.error(e)
-
-    # (Yura A) it was taken from /usr/lib/python2.7/unittest/case.py
-    def run(self, result=None):
-        orig_result = result
-        if result is None:
-            result = self.defaultTestResult()
-            startTestRun = getattr(result, 'startTestRun', None)
-            if startTestRun is not None:
-                startTestRun()
-
-        self._resultForDoCleanups = result
-        result.startTest(self)
-
-        testMethod = getattr(self, self._testMethodName)
-        if (getattr(self.__class__, "__unittest_skip__", False) or
-            getattr(testMethod, "__unittest_skip__", False)):
-            # If the class or method was skipped.
-            try:
-                skip_why = (getattr(self.__class__, '__unittest_skip_why__', '')
-                            or getattr(testMethod, '__unittest_skip_why__', ''))
-                self._addSkip(result, skip_why)
-            finally:
-                result.stopTest(self)
-            return
-        try:
-            success = False
-            try:
-                self.safe_exec(self.pre_set_up)
-                self.setUp()
-            except SkipTest as e:
-                self._addSkip(result, str(e))
-            except KeyboardInterrupt:
-                raise
-            except:
-                result.addError(self, sys.exc_info())
-            else:
-                try:
-                    testMethod()
-                    if hasattr(self, 'post_test_action'):
-                        self.post_test_action()
-                except KeyboardInterrupt:
-                    raise
-                except self.failureException:
-                    result.addFailure(self, sys.exc_info())
-                except _ExpectedFailure as e:
-                    addExpectedFailure = getattr(result, 'addExpectedFailure', None)
-                    if addExpectedFailure is not None:
-                        addExpectedFailure(self, e.exc_info)
-                    else:
-                        warnings.warn("TestResult has no addExpectedFailure method, reporting as passes",
-                                      RuntimeWarning)
-                        result.addSuccess(self)
-                except _UnexpectedSuccess:
-                    addUnexpectedSuccess = getattr(result, 'addUnexpectedSuccess', None)
-                    if addUnexpectedSuccess is not None:
-                        addUnexpectedSuccess(self)
-                    else:
-                        warnings.warn("TestResult has no addUnexpectedSuccess method, reporting as failures",
-                                      RuntimeWarning)
-                        result.addFailure(self, sys.exc_info())
-                except SkipTest as e:
-                    self._addSkip(result, str(e))
-                except:
-                    result.addError(self, sys.exc_info())
-                else:
-                    success = True
-
-                try:
-                    self.tearDown()
-                    self.safe_exec(self.post_tear_down)
-                except KeyboardInterrupt:
-                    raise
-                except:
-                    result.addError(self, sys.exc_info())
-                    success = False
-
-            cleanUpSuccess = self.doCleanups()
-            success = success and cleanUpSuccess
-            if success:
-                result.addSuccess(self)
-        finally:
-            result.stopTest(self)
-            if orig_result is None:
-                stopTestRun = getattr(result, 'stopTestRun', None)
-                if stopTestRun is not None:
-                    stopTestRun()
-
-    def get_js_errors(self):
-        errors = get_browser_errors(self.driver)
-        if errors != []:
-
-            if not '(Not Found)' in str(errors):
-                self.verificationErrors.append(
-                    'on page %s:\n%s' % (self.driver.current_url, '\n'.join(errors)))
-

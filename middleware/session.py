@@ -7,7 +7,6 @@ import json
 
 from noodles.datastore import Model, Value, DoesNotExist
 from noodles.middleware import BaseMiddleware
-from noodles.redisconn import RedisConn
 
 
 try:
@@ -17,8 +16,6 @@ except:
 
 
 class SessionData(Model):
-    RedisConn = RedisConn
-
     data = Value(str)
 
 

@@ -41,11 +41,11 @@ class WSSession(object):
         self.semaphore = Semaphore()  # use it concurent data access conditions
 
     def add_terminator(self, func):
-        """Add terminator function to session terminators scope"""
+        "Add terminator function to session terminators scope"
         self.terminators[func.__name__] = func
 
     def rm_terminator(self, func):
-        """Remove function from list of terminator functions"""
+        "Remove function from list of terminator functions"
         try:
             self.terminators.pop(func.__name__)
         except KeyError:
@@ -53,7 +53,7 @@ class WSSession(object):
             log.warning('Try to delete from WS session empty terminator')
 
     def tosend(self, chid, data):
-        """ Provide ability to send data through websocket by chid """
+        " Provide ability to send data through websocket by chid "
         self.output_queue.put(
             {'chid': chid, 'pkg': data, 'session_params': self.params})
 
@@ -68,7 +68,7 @@ class WSSession(object):
         pass  # while pass
 
     def kill_greenlets(self):
-        """ Kill all greenlets associated with this session """
+        " Kill all greenlets associated with this session "
         for green in self.greenlets.values():
             log.debug('Kill greenlet for session')
             gevent.kill(green)

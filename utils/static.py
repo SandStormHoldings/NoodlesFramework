@@ -2,7 +2,7 @@
 filedesc: Controller for serving static content
 '''
 import os
-from email.utils import formatdate
+from email.Utils import formatdate
 
 from noodles.http import BaseResponse, Error404
 from noodles.utils.logger import log
@@ -27,7 +27,6 @@ MIME_TYPES = {
     '.jpg': 'image/jpeg',
     '.gif': 'image/gif',
     '.png': 'image/png',
-    '.svg': 'image/svg+xml',
     '.tiff': 'image/tiff',
 
     # Sound files

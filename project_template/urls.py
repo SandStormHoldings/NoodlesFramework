@@ -4,7 +4,7 @@ filedesc: default url mapping
 """
 from routes import Mapper
 from config import DEBUG
-from noodles.utils.maputils import urlmap
+from noodles.utils import urlmap
 from routes.route import Route
 import os
 
@@ -15,10 +15,7 @@ def get_map():
     # Add routes here
     urlmap(map, [
         ('/', 'controllers#index'),
-        ('/write', 'controllers#write'),
-        ('/read', 'controllers#read'),        
-        ('/clean', 'controllers#clean'),
-        ('/reset', 'controllers#reset')
+        #('/route/url', 'controllerName.actionName')
     ])
 
     # Old style map connecting

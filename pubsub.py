@@ -108,8 +108,8 @@ class PubSubAgent(object):
                 try:
                     self.ws.send(msg['data'])
                 except Exception:  # Seems to be disconnected
-                    log.debug('Unsubscribe socket from channel no.%s '
-                              % self.channel)
+                    log.debug('Unsubscribe socket from channel'
+                                  ' no.%s ' % self.channel)
                     self.ws.close()
                     self.terminate()
                     return

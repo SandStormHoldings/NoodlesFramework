@@ -6,7 +6,6 @@ standard http concept. We can use it with Web Socket session together
 import json
 
 from noodles.datastore import Model, Value, DoesNotExist
-from noodles.redisconn import RedisConn
 
 
 try:
@@ -16,8 +15,6 @@ except:
 
 
 class SessionData(Model):
-    RedisConn = RedisConn
-
     data = Value(str)
 
 
@@ -62,7 +59,7 @@ class Session(object):
         self.data = self._Data()
         if id:
             try:
-                self._sessdata = SessionData.get(idx=id)
+                self._sessdata = SessionData.get(id=id)
                 self.id = self._sessdata.id
                 self.data.update(json.loads(self._sessdata.data))
                 return

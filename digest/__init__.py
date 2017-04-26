@@ -48,6 +48,7 @@ class HttpDigestAuthenticator(object):
             if prev_nonce == 'Logout':
                 return False
         return True
+        
 
     def authenticate(self, request):
         """
@@ -97,7 +98,7 @@ class HttpDigestAuthenticator(object):
             return False
 
         if not python_digest.validate_uri(
-                digest_response.uri, urllib.parse.unquote(request.path)):
+                digest_response.uri, urllib.unquote(request.path)):
             log.debug('authentication failure: digest authentication uri value'
                       '"%s" does not match value "%s" from HTTP'
                       'request line.' % (digest_response.uri, request.path))

@@ -19,7 +19,7 @@ class Fixture(object):
     @classmethod
     def dataset(cls):
         objects = []
-        for key, value in cls.__dict__.items():
+        for key, value in cls.__dict__.iteritems():
             if inspect.isclass(value):
                 objects.append(value)
         return objects
@@ -28,7 +28,7 @@ class Fixture(object):
         """
         Load data from fixtures
         """
-        for key, value in self.__class__.__dict__.items():
+        for key, value in self.__class__.__dict__.iteritems():
             if inspect.isclass(value):
                 self.raw_data[key] = getattr(self, key)
 
@@ -37,17 +37,17 @@ class Fixture(object):
         Load data from fixtures class and make model instances without save
         """
         self._prepare_raw_data()
-        for key, value in self.raw_data.items():
-            data = {}
+        for key, value in self.raw_data.iteritems():
+            obj = self.destination()
             columns = self.destination.__table__.columns.keys()
-            for base in self.destination.__bases__:
+            for base in obj.__class__.__bases__:
                 if hasattr(base, '__table__'):
                     columns.extend(base.__table__.columns.keys())
                     columns = list(set(columns))
             for column in columns:
                 if hasattr(value, column):
-                    data[column] = getattr(value, column)
-            self.mapped_data[key] = self.destination(**data)
+                    setattr(obj, column, getattr(value, column))
+            self.mapped_data[key] = obj
 
     def load(self):
         log.info('Load fixtures data for %s, %s',

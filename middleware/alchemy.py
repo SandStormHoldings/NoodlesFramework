@@ -6,9 +6,11 @@ filedesc: sqlalchemy session support
 import gevent
 
 from noodles.middleware import BaseMiddleware
-from noodles.utils.helpers import get_config
-from noodles.utils.detect import is_celery_run
-from alchemy_config import known_sessions, session_handler, sa_session as SESSION
+from noodles.utils.session_proxy import SessionProxy
+from alchemy_config import CREATEFUNC, DB_CONNECTIONS
+
+
+SESSION = SessionProxy(createfunc=CREATEFUNC, connections=DB_CONNECTIONS)
 
 
 def greenlet_spawn(fn, *args, **kw):
@@ -21,7 +23,7 @@ def greenlet_spawn(fn, *args, **kw):
     :return: :rtype:
     """
     g = gevent.spawn(fn, *args, **kw)
-    g.link_value(session_handler._remove_registry_session)
+    g.link_value(lambda x: SESSION._remove_registry_session(x))
     return g
 
 
@@ -36,5 +38,19 @@ class AlchemyMiddleware(BaseMiddleware):
         :param req:
         :return: :rtype:
         """
-        session_handler.remove()
+        SESSION.remove()
         return self.link(producer, req)
+
+
+def watchdog():
+    old = set()
+    while True:
+        gevent.sleep(60)
+        pairs = set(SESSION._get_open_pairs())
+        selected = old.intersection(pairs)
+        for greenlet, transaction in selected:
+            SESSION._remove_registry_session(greenlet)
+        old = pairs.difference(selected)
+        #print SESSION.status()
+
+gevent.spawn(watchdog)

@@ -1,1 +1,9 @@
-project_templates/default/requirements.txt
+gevent
+mako
+webob
+routes
+selenium
+unittest-xml-reporting
+PyVirtualDisplay
+python-digest
+decorator

@@ -71,7 +71,7 @@ class Dispatcher(object):
         self.controllers = {}
         for controller in controllers:
             # Import all controllers
-            base_mod = __import__(controller, globals(), locals(), [], 0)
+            base_mod = __import__(controller, globals(), locals(), [], -1)
             mod = sys.modules.get(controller)
             if not mod:
                 mod = base_mod
@@ -92,14 +92,13 @@ class Dispatcher(object):
         action = route_res.get('action')
         controller = self.controllers.get(controller_name)
         if not controller:
-            print('No such controller \'%s\'' % controller_name)
+            print 'No such controller \'%s\'' % controller_name
             return self.not_found(request)
         # Prepare extra args for callable
         # copying all data from routes dictionary
         extra_args = route_res.copy()
         for k, v in extra_args.items():
-            unq = str(v.encode('utf-8'))
-            extra_args[k] = urllib.parse.unquote(unq) #.decode('utf-8')
+            extra_args[k] = urllib.unquote(v.encode('utf-8')).decode('utf-8')
         # Delete controller and action items
         del extra_args['controller']
         del extra_args['action']
