@@ -150,7 +150,7 @@ class XResponse(BaseResponse):
             for cookie in unset_cookies_dict:
                 self.delete_cookie(cookie)
             response_dict.pop(UNSET_COOKIES)
-        self.text = unicode(json.dumps(response_dict, default=datahandler,indent=True))
+        self.text = unicode(json.dumps(response_dict, default=datahandler,indent=True,sort_keys=True))
 
 
 # Specify decorator for ajax response controller functions
