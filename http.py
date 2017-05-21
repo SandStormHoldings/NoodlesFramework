@@ -34,7 +34,7 @@ class Response(BaseResponse):
         self.status = 200  # 200 OK, it's default, but anyway...
         self.headerlist = [('Content-type', 'text/html')]
         self.charset = 'utf-8'
-        self.text = unicode(body)
+        self.text = body
 
 
 class XMLResponse(Response):
@@ -66,7 +66,7 @@ class Error403(BaseResponse):
         self.status = 403
         self.headerlist = [('Content-type', 'text/html')]
         self.charset = 'utf-8'
-        self.text = unicode(error_body)
+        self.text = error_body
 
 
 class Error404(BaseResponse):
@@ -76,7 +76,7 @@ class Error404(BaseResponse):
         self.status = 404
         self.headerlist = [('Content-type', 'text/html')]
         self.charset = 'utf-8'
-        self.text = unicode(error_body)
+        self.text = error_body
 
 
 class Error500(BaseResponse):
@@ -150,7 +150,7 @@ class XResponse(BaseResponse):
             for cookie in unset_cookies_dict:
                 self.delete_cookie(cookie)
             response_dict.pop(UNSET_COOKIES)
-        self.text = unicode(json.dumps(response_dict, default=datahandler,indent=True,sort_keys=True))
+        self.text = json.dumps(response_dict, default=datahandler,indent=True,sort_keys=True)
 
 
 # Specify decorator for ajax response controller functions

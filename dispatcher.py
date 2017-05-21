@@ -98,7 +98,7 @@ class Dispatcher(object):
         # copying all data from routes dictionary
         extra_args = route_res.copy()
         for k, v in extra_args.items():
-            unq = str(v.encode('utf-8'))
+            unq = str(v)
             extra_args[k] = urllib.parse.unquote(unq) #.decode('utf-8')
         # Delete controller and action items
         del extra_args['controller']
