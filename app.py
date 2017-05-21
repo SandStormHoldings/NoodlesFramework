@@ -16,7 +16,7 @@ import threading
 import time
 import json
 from mako.filters import xml_escape
-from config import (URL_RESOLVER, CONTROLLERS, MIDDLEWARES, DEBUG, AUTO_RELOAD,
+from config import (URL_RESOLVER, CONTROLLERS, MIDDLEWARES, DEBUG, AUTO_STOP,
                     HOST, PORT, SERVER_LOGTYPE, EXCEPTION_FLAVOR)
 
 from noodles.dispatcher import Dispatcher
@@ -133,17 +133,18 @@ class Observer(threading.Thread):
                         return True
                 files[ffn] = nmtime
         return False
-
+    do_run=True
     def run(self):
         files = {}
         self.scanfiles(self.mp, files, initial=True)
         print('watching %s files' % len(files))
-        while True:
+        while self.do_run:
             rt = self.scanfiles(self.mp, files, checkchange=True)
             if rt:
                 self.handler()
             time.sleep(0.5)
-
+    def stop(self):
+        self.do_run=False
     def fcntl_run(self):
         import fcntl
         import signal
@@ -165,6 +166,7 @@ def fs_monitor(server_instance):
     o.mp = os.getcwd()
     o.server_instance = server_instance
     o.start()
+    return o
 
 # Start server function, you may specify port number here
 SERVER_INSTANCE = None
@@ -199,12 +201,16 @@ def startgeventapp(port=PORT, host=None, start_time=None):
         (host, int(port)),
         noodlesapp,
         log=log_stream)
-    if AUTO_RELOAD:
-        fs_monitor(SERVER_INSTANCE)
+    if AUTO_STOP:
+        observer = fs_monitor(SERVER_INSTANCE)
+    else:
+        observer = None
     try:
         SERVER_INSTANCE.serve_forever()
     except KeyboardInterrupt:
-        print('interrupting...')
+        if observer:
+            print('stopping file change watcher.')
+            observer.stop()
     finally:
         if hasattr(log_stream,'close'):
             log_stream.close()

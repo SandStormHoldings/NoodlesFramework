@@ -6,7 +6,7 @@ import os
 NO_GEVENT_MONKEYPATCH=False
 DEBUG = True
 TESTING = True
-AUTO_RELOAD = True
+AUTO_STOP = True # kill the process if change is observed in the sources
 HOST='localhost'
 USE_ALCHEMY_MW=False
 
