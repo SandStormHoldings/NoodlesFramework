@@ -9,7 +9,6 @@ from noodles.utils.logger import log
 
 
 
-
 # Mime types dictionary, contain pairs: key - file extansion,
 # value - mime type
 MIME_TYPES = {
@@ -53,11 +52,8 @@ def toInt(val):
     return int(val)
 
 
-def index(request, path_info, path):
+def index(request, path_info, path, auth=None):
     partial_response = False
-    path_info = path_info.replace('%28', '(')\
-                         .replace('%29', ')')\
-                         .replace('%20', ' ')
     response = BaseResponse()
     # define a file extansion
     base, ext = os.path.splitext(path_info)  # Get the file extansion
