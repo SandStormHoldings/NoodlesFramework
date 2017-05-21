@@ -3,11 +3,14 @@
 ** Quickstart
 #+BEGIN_SRC shell
 
-mkdir helloworld                                                               #create a directory structure for your project
-git clone host:../NoodlesFramework.git helloworld/noodles                      # clone it to noodles directory
-cd helloworld && noodles/manage.py init                                        # copy the project template to your project dir
-virtualenv venv && source venv/bin/activate && pip install -r requirements.txt # create a virtual environment, install dependencies
-./runserver.py                                                                 # we are good to go. point your browser to the address
+PROJNAME="helloworld"                                                                   # this is our project name
+mkdir $PROJNAME                                                                         # create a directory structure for your project
+git clone https://github.com/SandStormHoldings/NoodlesFramework.git $PROJNAME/noodles   # clone it to noodles directory
+cd $PROJNAME                                                                            # chdir into your new project
+virtualenv -p python3.5 . && source bin/activate                                        # noodles requires a python3 env
+noodles/manage.py init default                                                          # copy the project template to your project dir
+pip install -r requirements.txt                                                         # create a virtual environment, install dependencies
+./runserver.py                                                                          # we are good to go. point your browser to the address displayed
 
 #+END_SRC
 
