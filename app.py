@@ -3,18 +3,11 @@
 Machinery for launching the wsgi server
 """
 from noodles.utils.helpers import get_config
-if not get_config('DONT_USE_GEVENT'):
-    from gevent import monkey
-    monkey.patch_all()
 
 
 from logging import Formatter
-import os
-import re
-import sys
+import os,re,sys,time,json,threading
 import threading
-import time
-import json
 from mako.filters import xml_escape
 from config import (URL_RESOLVER, CONTROLLERS, MIDDLEWARES, DEBUG, AUTO_STOP,
                     HOST, PORT, SERVER_LOGTYPE, EXCEPTION_FLAVOR)
@@ -27,15 +20,16 @@ from noodles.utils.datahandler import datahandler
 from noodles.utils.logger import log
 from noodles.utils.mailer import report_exception, format_exception
 
+# we avoid side effects at import of app by wrapping initialization within init_globals() 
+resolver = None
+dispatcher = None 
+middlewares = None
 
-resolver = __import__(URL_RESOLVER, globals(), locals())
-
-# Create an dispatcher instance
-dispatcher = Dispatcher(mapper=resolver.get_map(), controllers=CONTROLLERS)
-
-# Load all midllewares for application
-middlewares = AppMiddlewares(MIDDLEWARES)
-
+def init_globals():
+    global resolver,dispatcher,middlewares
+    if not resolver: resolver = __import__(URL_RESOLVER, globals(), locals())
+    if not dispatcher: dispatcher = Dispatcher(mapper=resolver.get_map(), controllers=CONTROLLERS)
+    if not middlewares: middlewares = AppMiddlewares(MIDDLEWARES)
 
 # Our start point WSGI application
 def noodlesapp(env, start_response):
@@ -46,6 +40,7 @@ def noodlesapp(env, start_response):
     :param start_response:
     :return: :rtype: :raise:
     """
+    init_globals()
     # Get request object
     if get_config('ENCODE_SEMICOLON_IN_REQUEST') is True:
         env['QUERY_STRING'] = re.sub('[;]', '%3b', env['QUERY_STRING'])
@@ -214,7 +209,6 @@ def startgeventapp(port=PORT, host=None, start_time=None):
     finally:
         if hasattr(log_stream,'close'):
             log_stream.close()
-
 
 def startbackdoor(host=None, port=8998):
     if get_config('DONT_USE_GEVENT'):

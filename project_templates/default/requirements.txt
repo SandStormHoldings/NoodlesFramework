@@ -1,6 +1,6 @@
 gevent
 gevent-websocket
-mako==0.7.3
+mako
 webob
 routes
 selenium==2.35.0

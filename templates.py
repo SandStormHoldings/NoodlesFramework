@@ -15,8 +15,8 @@ from noodles.http import Response, XMLResponse
 # Specify application lookup
 appLookup = TemplateLookup(
     directories=TEMPLATE_DIRS,
-    module_directory=MAKO_TMP_DIR, output_encoding='utf-8',
-    input_encoding='utf-8', default_filters=['h']
+    module_directory=MAKO_TMP_DIR,
+    default_filters=['h']
 )
 
 
@@ -107,6 +107,7 @@ def render_to(templatename):
                 return context
             # Add some extra values to context
             request = kwargs['request']  # while it's enough :)
+            #raise Exception('about to render',templatename)
             rendered_page = render_to_string(templatename, context, request)
             return Response(rendered_page)
         return wrapper
